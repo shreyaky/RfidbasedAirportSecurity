@@ -25,36 +25,91 @@ namespace RfidBasedAirportSecurity.Controllers
 
         // GET: api/PassengerAreaAccesses/5
         [ResponseType(typeof(PassengerAreaAccess))]
-        public async Task<IHttpActionResult> GetPassengerAreaAccess(string id)
+        public IHttpActionResult GetPassengerAreaAccess(string id)
         {
-            PassengerAreaAccess passengerAreaAccess = await db.PassengerAreaAccesses.FindAsync(id);
+            PassengerAreaAccess passengerAreaAccess =  db.PassengerAreaAccesses.Find(id);
             if (passengerAreaAccess == null)
             {
-                return NotFound();
+                return null;
             }
 
             return Ok(passengerAreaAccess);
         }
 
+
+        [HttpPut]
+        [Route("api/PassengerAreaAccesses/put/{RFID}/{ZoneId}")]
+        public IHttpActionResult PutPostPassengerAreaAccess(String RFID, String ZoneId)
+        {
+            var response = GetPassengerAreaAccess(RFID);
+            PassengerAreaAccess PassAccessArea = new PassengerAreaAccess()
+            {
+                RFID_ID = RFID,
+                ZoneId = ZoneId,
+                Access_Time = System.DateTime.Now,
+            };
+
+            if (response == null)
+            {
+                return PostPassengerAreaAccess(PassAccessArea);
+            }
+            else
+            {
+                return PutPassengerAreaAccess(RFID, PassAccessArea);
+            }
+
+        }
+
+
+        [HttpGet]   //no need to use this now, as we made RFID as key the above get method will work the same.
+        [Route("api/PassengerAreaAccesses/LastAccess/{RFID}")]
+        public HttpResponseMessage GetLastLocation(String RFID)
+        {
+            var passengerLastAccess = db.PassengerAreaAccesses
+                 .Where(a => a.RFID_ID.Equals(RFID, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+
+            if (passengerLastAccess == null)
+            {
+                var response1 = Request.CreateResponse(HttpStatusCode.NotFound);
+                return response1;
+            }
+            var response = Request.CreateResponse(HttpStatusCode.OK, passengerLastAccess);
+            response.Headers.Add("RFID", passengerLastAccess.RFID_ID.ToString());
+            response.Headers.Add("ZoneId", passengerLastAccess.ZoneId.ToString());
+            response.Headers.Add("LastAccessTime", passengerLastAccess.Access_Time.ToString());
+            return response;
+
+        }
+
+
         // PUT: api/PassengerAreaAccesses/5
         [ResponseType(typeof(void))]
-        public async Task<IHttpActionResult> PutPassengerAreaAccess(string id, PassengerAreaAccess passengerAreaAccess)
+        public IHttpActionResult PutPassengerAreaAccess(string id, PassengerAreaAccess passengerAreaAccess)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            if (id != passengerAreaAccess.ZoneId)
+            if (id != passengerAreaAccess.RFID_ID)
             {
                 return BadRequest();
             }
+
+            PassengerAreaAccess passengerAreaAccess2 = db.PassengerAreaAccesses.Find(id);
+            if (passengerAreaAccess2 != null)
+            {
+
+                db.Entry(passengerAreaAccess2).State = EntityState.Detached;
+                db.SaveChanges();
+            }
+
 
             db.Entry(passengerAreaAccess).State = EntityState.Modified;
 
             try
             {
-                await db.SaveChangesAsync();
+                db.SaveChanges();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -73,7 +128,8 @@ namespace RfidBasedAirportSecurity.Controllers
 
         // POST: api/PassengerAreaAccesses
         [ResponseType(typeof(PassengerAreaAccess))]
-        public async Task<IHttpActionResult> PostPassengerAreaAccess(PassengerAreaAccess passengerAreaAccess)
+        [Route(Name = "PostRFIDSecurity")]
+        public IHttpActionResult PostPassengerAreaAccess(PassengerAreaAccess passengerAreaAccess)
         {
             if (!ModelState.IsValid)
             {
@@ -84,11 +140,11 @@ namespace RfidBasedAirportSecurity.Controllers
 
             try
             {
-                await db.SaveChangesAsync();
+               db.SaveChanges();
             }
             catch (DbUpdateException)
             {
-                if (PassengerAreaAccessExists(passengerAreaAccess.ZoneId))
+                if (PassengerAreaAccessExists(passengerAreaAccess.RFID_ID))
                 {
                     return Conflict();
                 }
@@ -97,8 +153,9 @@ namespace RfidBasedAirportSecurity.Controllers
                     throw;
                 }
             }
+            return CreatedAtRoute("PostRFIDSecurity", new { Controllers = "PassengerAreaAccessesController", id = passengerAreaAccess.RFID_ID }, passengerAreaAccess);
 
-            return CreatedAtRoute("DefaultApi", new { id = passengerAreaAccess.ZoneId }, passengerAreaAccess);
+            // CreatedAtRoute("DefaultApi", new { id = passengerAreaAccess.RFID }, passengerAreaAccess);
         }
 
         // DELETE: api/PassengerAreaAccesses/5
@@ -128,7 +185,7 @@ namespace RfidBasedAirportSecurity.Controllers
 
         private bool PassengerAreaAccessExists(string id)
         {
-            return db.PassengerAreaAccesses.Count(e => e.ZoneId == id) > 0;
+            return db.PassengerAreaAccesses.Count(e => e.RFID_ID == id) > 0;
         }
     }
 }

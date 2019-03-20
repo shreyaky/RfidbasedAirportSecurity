@@ -36,7 +36,31 @@ namespace RfidBasedAirportSecurity.Controllers
             return Ok(passengerDetails);
         }
 
-        
+        [HttpGet]
+        [Route("api/PassengerDetails/ByRfid/{RFID}")]
+        public HttpResponseMessage GetPassengerByRfid(String RFID)
+        {
+
+            var passenger = db.PassengerDetails
+                 .Where(a => a.RFID_ID.Equals(RFID, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+
+            if (passenger == null)
+            {
+                var response1 = Request.CreateResponse(HttpStatusCode.BadRequest);
+                return response1;
+            }
+            var response = Request.CreateResponse(HttpStatusCode.OK, passenger);
+            response.Headers.Add("RFID", passenger.RFID_ID.ToString());
+            response.Headers.Add("PNR", passenger.PNR.ToString());
+            response.Headers.Add("PassengerId", passenger.PassengerId.ToString());
+            response.Headers.Add("Name", passenger.Name.ToString());
+            response.Headers.Add("PassengerType", passenger.PassengerType.ToString());
+            response.Headers.Add("Tracking", passenger.Tracking.ToString());
+            return response;
+
+        }
+
+
         // PUT: api/PassengerDetails/5
         [ResponseType(typeof(void))]
         public async Task<IHttpActionResult> PutPassengerDetails(string id, PassengerDetails passengerDetails)
